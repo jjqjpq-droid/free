@@ -1,0 +1,11 @@
+ig-harvester/
+├── app.py
+├── requirements.txt
+├── vercel.json
+├── README.md
+├── templates/
+│   ├── index.html
+│   └── admin.html
+└── static/
+    ├── style.css
+    └── script.js
