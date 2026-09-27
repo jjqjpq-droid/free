@@ -1,5 +1,4 @@
-# language: Python 3, file: app.py, target: Termux/Render/Vercel(local-only)
-# Pure local file storage. No jsonbin, no supabase. Admin reads same file.
+# language: Python 3, file: app.py, target: Render/Termux
 import os, json, time
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session, Response
@@ -109,10 +108,6 @@ def admin_export():
     return Response(json.dumps(creds, indent=2, ensure_ascii=False),
         mimetype="application/json",
         headers={"Content-Disposition": "attachment; filename=creds.json"})
-
-@app.route("/health")
-def health():
-    return jsonify({"status": "ok", "backend": "local"}), 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

